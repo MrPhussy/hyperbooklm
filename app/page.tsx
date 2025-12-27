@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Navbar } from "@/components/Navbar";
 import { SourcesPanel } from "@/components/SourcesPanel";
 import { ChatInterface } from "@/components/ChatInterface";
 import { OutputsPanel } from "@/components/OutputsPanel";
 import { Source, Message } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
+import { Key } from "lucide-react";
 
 export default function Home() {
   const { toast } = useToast();
@@ -27,6 +28,34 @@ export default function Home() {
   const [isGeneratingSlides, setIsGeneratingSlides] = useState(false);
   const [isGeneratingMindmap, setIsGeneratingMindmap] = useState(false);
 
+  const [internalApiKey, setInternalApiKey] = useState<string>("");
+
+  useEffect(() => {
+    const savedKey = localStorage.getItem("INTERNAL_API_KEY");
+    if (savedKey) setInternalApiKey(savedKey);
+  }, []);
+
+  const handleSetApiKey = (key: string) => {
+    setInternalApiKey(key);
+    localStorage.setItem("INTERNAL_API_KEY", key);
+  };
+
+  const authFetch = async (url: string, options: RequestInit = {}) => {
+    const headers = {
+      ...options.headers,
+      "X-Api-Key": internalApiKey,
+    };
+    const res = await fetch(url, { ...options, headers });
+    if (res.status === 401) {
+      toast({
+        title: "Unauthorized",
+        description: "Please check your internal API Key.",
+        variant: "destructive",
+      });
+    }
+    return res;
+  };
+
   // Handlers
   const generateSummary = async (currentSources: Source[]) => {
     const context = currentSources
@@ -38,7 +67,7 @@ export default function Home() {
 
     try {
       setSummary("Generating summary...");
-      const res = await fetch("/api/summary", {
+      const res = await authFetch("/api/summary", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ context }),
@@ -80,7 +109,7 @@ export default function Home() {
     setSources(prev => [...prev, newSource]);
 
     try {
-      const res = await fetch("/api/scrape", {
+      const res = await authFetch("/api/scrape", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url }),
@@ -136,7 +165,7 @@ export default function Home() {
       const formData = new FormData();
       formData.append("file", file);
 
-      const res = await fetch("/api/upload", {
+      const res = await authFetch("/api/upload", {
         method: "POST",
         body: formData,
       });
@@ -201,7 +230,7 @@ export default function Home() {
         .map(s => `Title: ${s.title}\nContent: ${s.text?.slice(0, 2000)}`) // Truncate for token limits
         .join("\n\n");
 
-      const response = await fetch("/api/chat", {
+      const response = await authFetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -251,7 +280,7 @@ export default function Home() {
       const textToSpeak = summary || messages[messages.length - 1]?.content || "No content available.";
 
       // 1. Generate Podcast Script
-      const scriptRes = await fetch("/api/podcast", {
+      const scriptRes = await authFetch("/api/podcast", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ context: textToSpeak.slice(0, 3000) }),
@@ -261,7 +290,7 @@ export default function Home() {
       const { turns } = await scriptRes.json();
 
       // 2. Generate Audio from Script
-      const res = await fetch("/api/audio", {
+      const res = await authFetch("/api/audio", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ turns }),
@@ -296,7 +325,7 @@ export default function Home() {
 
     setIsGeneratingSlides(true);
     try {
-      const res = await fetch("/api/gemini/slides", {
+      const res = await authFetch("/api/gemini/slides", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -326,7 +355,7 @@ export default function Home() {
 
     setIsGeneratingMindmap(true);
     try {
-      const res = await fetch("/api/gpt/mindmap", {
+      const res = await authFetch("/api/gpt/mindmap", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -421,6 +450,20 @@ export default function Home() {
               onGenerateMindmap={handleGenerateMindmap}
             />
           </div>
+        </div>
+      </div>
+
+      {/* API Key Input */}
+      <div className="fixed bottom-4 right-4 z-50">
+        <div className="flex items-center gap-2 bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg p-2 shadow-lg hover:shadow-xl transition-all group">
+          <Key className="h-4 w-4 text-gray-500 group-hover:text-black" />
+          <input
+            type="password"
+            placeholder="Internal API Key"
+            value={internalApiKey}
+            onChange={(e) => handleSetApiKey(e.target.value)}
+            className="text-xs bg-transparent border-none focus:ring-0 w-32 outline-none"
+          />
         </div>
       </div>
     </div>
