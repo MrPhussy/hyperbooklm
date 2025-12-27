@@ -25,25 +25,30 @@ export async function POST(request: NextRequest) {
     const host1Voice = process.env.HUME_HOST_1_VOICE || "Vince Douglas";
     const host2Voice = process.env.HUME_HOST_2_VOICE || "Ava Song";
 
+    const getVoiceObject = (voiceRef: string) => {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(voiceRef);
+      if (isUuid) {
+        return { id: voiceRef };
+      }
+      return {
+        name: voiceRef,
+        provider: "HUME_AI"
+      };
+    };
+
     // Build utterances list
     const utterances = [];
     if (turns && Array.isArray(turns)) {
       for (const turn of turns) {
         utterances.push({
           text: turn.text,
-          voice: {
-            name: turn.role === "host1" ? host1Voice : host2Voice,
-            provider: "HUME_AI",
-          },
+          voice: getVoiceObject(turn.role === "host1" ? host1Voice : host2Voice),
         });
       }
     } else {
       utterances.push({
         text: text,
-        voice: {
-          name: host1Voice,
-          provider: "HUME_AI",
-        },
+        voice: getVoiceObject(host1Voice),
       });
     }
 

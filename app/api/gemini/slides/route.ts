@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 import { Source } from "@/lib/types";
 
-const DEFAULT_MODEL = "gemini-3-pro-image-preview"; // Exact match from user example
+const DEFAULT_MODEL = "gemini-1.5-flash";
 
 function buildContentFromSources(sources: Source[], maxChars = 5000) {
   const payload = sources
@@ -31,10 +31,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const model = process.env.GEMINI_MODEL || "gemini-3-pro-image-preview";
+
     // Initialize Google GenAI
     const ai = new GoogleGenAI({ apiKey });
-
-    const model = DEFAULT_MODEL;
 
     const sourceContent = buildContentFromSources(sources);
 
