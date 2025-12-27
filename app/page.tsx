@@ -41,15 +41,24 @@ export default function Home() {
   };
 
   const authFetch = async (url: string, options: RequestInit = {}) => {
+    if (!internalApiKey) {
+      toast({
+        title: "Security Key Missing",
+        description: "Please enter your Internal API Key in the bottom-right.",
+        variant: "destructive",
+      });
+      throw new Error("Internal API Key is missing");
+    }
+
     const headers = {
       ...options.headers,
-      "X-Api-Key": internalApiKey,
+      "x-api-key": internalApiKey,
     };
     const res = await fetch(url, { ...options, headers });
     if (res.status === 401) {
       toast({
         title: "Unauthorized",
-        description: "Please check your internal API Key.",
+        description: "Your Internal API Key is incorrect. Please check your Railway/Env settings.",
         variant: "destructive",
       });
     }
@@ -455,15 +464,28 @@ export default function Home() {
 
       {/* API Key Input */}
       <div className="fixed bottom-4 right-4 z-50">
-        <div className="flex items-center gap-2 bg-white/80 backdrop-blur-sm border border-gray-200 rounded-lg p-2 shadow-lg hover:shadow-xl transition-all group">
-          <Key className="h-4 w-4 text-gray-500 group-hover:text-black" />
-          <input
-            type="password"
-            placeholder="Internal API Key"
-            value={internalApiKey}
-            onChange={(e) => handleSetApiKey(e.target.value)}
-            className="text-xs bg-transparent border-none focus:ring-0 w-32 outline-none"
-          />
+        <div className={`flex flex-col gap-2 p-3 rounded-xl border transition-all shadow-2xl backdrop-blur-md ${internalApiKey ? "bg-white/90 border-green-200" : "bg-red-50/90 border-red-200 animate-pulse"
+          }`}>
+          <div className="flex items-center gap-2">
+            <Key className={`h-4 w-4 ${internalApiKey ? "text-green-600" : "text-red-600"}`} />
+            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
+              {internalApiKey ? "Security Active" : "Security Required"}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
+            <input
+              type="password"
+              placeholder="Enter INTERNAL_API_KEY"
+              value={internalApiKey}
+              onChange={(e) => handleSetApiKey(e.target.value)}
+              className="text-xs bg-transparent border-none focus:ring-0 w-40 outline-none px-2 py-1"
+            />
+          </div>
+          {!internalApiKey && (
+            <p className="text-[9px] text-red-500 max-w-[160px] leading-tight">
+              Must match the <b>INTERNAL_API_KEY</b> in your Railway/Env settings.
+            </p>
+          )}
         </div>
       </div>
     </div>
