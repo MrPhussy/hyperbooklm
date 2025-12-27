@@ -33,11 +33,11 @@ export async function POST(request: NextRequest) {
 
     // Initialize Google GenAI
     const ai = new GoogleGenAI({ apiKey });
-    
+
     const model = DEFAULT_MODEL;
-    
+
     const sourceContent = buildContentFromSources(sources);
-    
+
     // Build prompt for slide generation
     const prompt = `You are an expert presentation designer.
 Create a slide deck outline based on the provided source content.
@@ -76,7 +76,7 @@ Return ONLY the JSON, no other text.`;
       throw new Error("No content generated");
     }
 
-    const generatedText = parts.find((part: any) => part.text)?.text;
+    const generatedText = parts.find((part: { text?: string }) => part.text)?.text;
     if (!generatedText) {
       console.error("[Slides] No text in response parts");
       throw new Error("No text content generated");
@@ -88,7 +88,7 @@ Return ONLY the JSON, no other text.`;
       // Clean up the response (remove markdown code blocks if present)
       const cleanedText = generatedText.replace(/```json\s*|\s*```/g, '').trim();
       slidesData = JSON.parse(cleanedText);
-    } catch (parseError) {
+    } catch {
       console.error("[Slides] Failed to parse JSON:", generatedText);
       throw new Error("Invalid JSON response from Gemini");
     }

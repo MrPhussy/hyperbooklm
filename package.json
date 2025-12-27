@@ -21,6 +21,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "framer-motion": "^12.23.26",
+    "hume": "^0.15.9",
     "lucide-react": "^0.462.0",
     "next": "15.1.0",
     "openai": "^6.10.0",
@@ -29,7 +30,8 @@
     "reactflow": "^11.11.4",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
-    "unpdf": "^1.4.0"
+    "unpdf": "^1.4.0",
+    "hume": "^0.15.9"
   },
   "devDependencies": {
     "@types/node": "^22",

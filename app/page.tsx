@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function Home() {
   const { toast } = useToast();
-  
+
   // State
   const [sources, setSources] = useState<Source[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -18,7 +18,7 @@ export default function Home() {
   const [slides, setSlides] = useState<any[]>([]);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [mindmapData, setMindmapData] = useState<any>(null);
-  
+
   // Loading States
   const [isScraping, setIsScraping] = useState(false);
   const [isChatting, setIsChatting] = useState(false);
@@ -43,13 +43,13 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ context }),
       });
-      
+
       const data = await res.json();
-      
+
       if (!res.ok) {
         throw new Error(data.error || "Failed to generate summary");
       }
-      
+
       if (data.summary) {
         setSummary(data.summary);
       } else {
@@ -70,13 +70,13 @@ export default function Home() {
     setIsScraping(true);
     const tempId = `source-${Date.now()}`;
     // Add optimistic source
-    const newSource: Source = { 
-        id: tempId, 
-        url, 
-        status: "loading", 
-        addedAt: Date.now() 
+    const newSource: Source = {
+      id: tempId,
+      url,
+      status: "loading",
+      addedAt: Date.now()
     };
-    
+
     setSources(prev => [...prev, newSource]);
 
     try {
@@ -85,17 +85,17 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url }),
       });
-      
+
       const data = await res.json();
-      
+
       if (!res.ok) throw new Error(data.error || "Failed to scrape");
 
-      const updatedSource = { 
-            ...newSource,
-            status: "success" as const, 
-            title: data.title, 
-            content: data.content,
-            text: data.text 
+      const updatedSource = {
+        ...newSource,
+        status: "success" as const,
+        title: data.title,
+        content: data.content,
+        text: data.text
       };
 
       setSources(prev => prev.map(s => s.id === tempId ? updatedSource : s));
@@ -104,13 +104,13 @@ export default function Home() {
 
     } catch (error) {
       console.error(error);
-      setSources(prev => prev.map(s => 
+      setSources(prev => prev.map(s =>
         s.id === tempId ? { ...s, status: "error", error: "Failed to load" } : s
       ));
-      toast({ 
-        title: "Failed to add source", 
+      toast({
+        title: "Failed to add source",
         description: error instanceof Error ? error.message : "Unknown error",
-        variant: "destructive" 
+        variant: "destructive"
       });
     } finally {
       setIsScraping(false);
@@ -120,7 +120,7 @@ export default function Home() {
   const handleAddFile = async (file: File) => {
     setIsScraping(true);
     const tempId = `file-${Date.now()}`;
-    
+
     // Add optimistic source
     const newSource: Source = {
       id: tempId,
@@ -129,7 +129,7 @@ export default function Home() {
       status: "loading",
       addedAt: Date.now(),
     };
-    
+
     setSources(prev => [...prev, newSource]);
 
     try {
@@ -189,7 +189,7 @@ export default function Home() {
       content,
       timestamp: Date.now(),
     };
-    
+
     setMessages(prev => [...prev, newMessage]);
     setIsChatting(true);
     setStreamingContent("");
@@ -242,101 +242,109 @@ export default function Home() {
 
   const handleGenerateAudio = async () => {
     if (!summary && messages.length === 0) {
-        toast({ title: "Nothing to generate audio from", description: "Add sources or chat first." });
-        return;
+      toast({ title: "Nothing to generate audio from", description: "Add sources or chat first." });
+      return;
     }
-    
+
     setIsGeneratingAudio(true);
     try {
-        const textToSpeak = summary || messages[messages.length - 1]?.content || "No content available.";
-        
-        const res = await fetch("/api/audio", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text: textToSpeak.slice(0, 1000) }), // Limit length for demo
-        });
+      const textToSpeak = summary || messages[messages.length - 1]?.content || "No content available.";
 
-        if (!res.ok) {
+      // 1. Generate Podcast Script
+      const scriptRes = await fetch("/api/podcast", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ context: textToSpeak.slice(0, 3000) }),
+      });
+
+      if (!scriptRes.ok) throw new Error("Failed to generate podcast script");
+      const { turns } = await scriptRes.json();
+
+      // 2. Generate Audio from Script
+      const res = await fetch("/api/audio", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ turns }),
+      });
+
+      if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        if (res.status === 401 && data.error?.includes("missing_permissions")) {
-            throw new Error("API Key missing 'text_to_speech' permission");
-        }
         throw new Error(data.error || "Audio generation failed");
       }
 
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        setAudioUrl(url);
-        toast({ title: "Audio generated" });
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      setAudioUrl(url);
+      toast({ title: "Multi-voice Podcast generated!" });
     } catch (error) {
-        console.error(error);
-        toast({ 
-            title: "Audio generation failed", 
-            description: error instanceof Error ? error.message : "Unknown error",
-            variant: "destructive" 
-        });
+      console.error(error);
+      toast({
+        title: "Podcast generation failed",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive"
+      });
     } finally {
-        setIsGeneratingAudio(false);
+      setIsGeneratingAudio(false);
     }
   };
 
   const handleGenerateSlides = async () => {
     if (sources.filter(s => s.status === "success").length === 0) {
-        toast({ title: "No sources available", description: "Add sources to generate slides." });
-        return;
+      toast({ title: "No sources available", description: "Add sources to generate slides." });
+      return;
     }
 
     setIsGeneratingSlides(true);
     try {
-        const res = await fetch("/api/gemini/slides", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ 
-                notebookId: "nb-1", 
-                sources: sources 
-            }),
-        });
+      const res = await fetch("/api/gemini/slides", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          notebookId: "nb-1",
+          sources: sources
+        }),
+      });
 
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Failed");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed");
 
-        setSlides(data.slides);
-        toast({ title: "Slides generated" });
+      setSlides(data.slides);
+      toast({ title: "Slides generated" });
     } catch (error) {
-        console.error(error);
-        toast({ title: "Failed to generate slides", variant: "destructive" });
+      console.error(error);
+      toast({ title: "Failed to generate slides", variant: "destructive" });
     } finally {
-        setIsGeneratingSlides(false);
+      setIsGeneratingSlides(false);
     }
   };
 
   const handleGenerateMindmap = async () => {
     if (sources.filter(s => s.status === "success").length === 0) {
-        toast({ title: "No sources available", description: "Add sources to generate mindmap." });
-        return;
+      toast({ title: "No sources available", description: "Add sources to generate mindmap." });
+      return;
     }
 
     setIsGeneratingMindmap(true);
     try {
-        const res = await fetch("/api/gpt/mindmap", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ 
-                notebookId: "nb-1", 
-                sources: sources 
-            }),
-        });
+      const res = await fetch("/api/gpt/mindmap", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          notebookId: "nb-1",
+          sources: sources
+        }),
+      });
 
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Failed");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed");
 
-        setMindmapData(data.root); // We should ideally process this into ReactFlow nodes
-        toast({ title: "Mindmap generated" });
+      setMindmapData(data.root); // We should ideally process this into ReactFlow nodes
+      toast({ title: "Mindmap generated" });
     } catch (error) {
-        console.error(error);
-        toast({ title: "Failed to generate mindmap", variant: "destructive" });
+      console.error(error);
+      toast({ title: "Failed to generate mindmap", variant: "destructive" });
     } finally {
-        setIsGeneratingMindmap(false);
+      setIsGeneratingMindmap(false);
     }
   };
 
@@ -346,30 +354,27 @@ export default function Home() {
   return (
     <div className="flex flex-col h-screen bg-white text-black font-sans overflow-hidden">
       <Navbar />
-      
+
       {/* Mobile Tab Navigation */}
       <div className="lg:hidden flex border-b border-gray-200 bg-gray-50">
         <button
           onClick={() => setMobileTab("sources")}
-          className={`flex-1 py-3 text-sm font-medium transition-colors ${
-            mobileTab === "sources" ? "bg-white border-b-2 border-black" : "text-gray-500"
-          }`}
+          className={`flex-1 py-3 text-sm font-medium transition-colors ${mobileTab === "sources" ? "bg-white border-b-2 border-black" : "text-gray-500"
+            }`}
         >
           Sources {sources.length > 0 && `(${sources.length})`}
         </button>
         <button
           onClick={() => setMobileTab("chat")}
-          className={`flex-1 py-3 text-sm font-medium transition-colors ${
-            mobileTab === "chat" ? "bg-white border-b-2 border-black" : "text-gray-500"
-          }`}
+          className={`flex-1 py-3 text-sm font-medium transition-colors ${mobileTab === "chat" ? "bg-white border-b-2 border-black" : "text-gray-500"
+            }`}
         >
           Chat
         </button>
         <button
           onClick={() => setMobileTab("outputs")}
-          className={`flex-1 py-3 text-sm font-medium transition-colors ${
-            mobileTab === "outputs" ? "bg-white border-b-2 border-black" : "text-gray-500"
-          }`}
+          className={`flex-1 py-3 text-sm font-medium transition-colors ${mobileTab === "outputs" ? "bg-white border-b-2 border-black" : "text-gray-500"
+            }`}
         >
           Outputs
         </button>
@@ -379,7 +384,7 @@ export default function Home() {
       <div className="flex-1 grid lg:grid-cols-12 gap-0 overflow-hidden">
         {/* Left: Sources */}
         <div className={`${mobileTab === "sources" ? "block" : "hidden"} lg:block lg:col-span-3 border-r border-gray-200 h-full overflow-hidden`}>
-          <SourcesPanel 
+          <SourcesPanel
             sources={sources}
             onAddUrl={handleAddUrl}
             onAddFile={handleAddFile}
@@ -391,7 +396,7 @@ export default function Home() {
 
         {/* Middle: Chat */}
         <div className={`${mobileTab === "chat" ? "block" : "hidden"} lg:block lg:col-span-5 border-r border-gray-200 h-full overflow-hidden`}>
-          <ChatInterface 
+          <ChatInterface
             messages={messages}
             streamingContent={streamingContent}
             isLoading={isChatting}
@@ -403,17 +408,17 @@ export default function Home() {
         {/* Right: Outputs */}
         <div className={`${mobileTab === "outputs" ? "block" : "hidden"} lg:block lg:col-span-4 h-full overflow-hidden bg-white`}>
           <div className="h-full overflow-y-auto">
-            <OutputsPanel 
-                summary={summary}
-                slides={slides}
-                audioUrl={audioUrl}
-                mindmapData={mindmapData}
-                isGeneratingAudio={isGeneratingAudio}
-                isGeneratingSlides={isGeneratingSlides}
-                isGeneratingMindmap={isGeneratingMindmap}
-                onGenerateAudio={handleGenerateAudio}
-                onGenerateSlides={handleGenerateSlides}
-                onGenerateMindmap={handleGenerateMindmap}
+            <OutputsPanel
+              summary={summary}
+              slides={slides}
+              audioUrl={audioUrl}
+              mindmapData={mindmapData}
+              isGeneratingAudio={isGeneratingAudio}
+              isGeneratingSlides={isGeneratingSlides}
+              isGeneratingMindmap={isGeneratingMindmap}
+              onGenerateAudio={handleGenerateAudio}
+              onGenerateSlides={handleGenerateSlides}
+              onGenerateMindmap={handleGenerateMindmap}
             />
           </div>
         </div>

@@ -67,22 +67,22 @@ export async function POST(request: NextRequest) {
 
     const data = await response.json();
     let rawContent = data.choices?.[0]?.message?.content || "{}";
-    
+
     // Cleanup markdown code blocks if present (more robust regex)
     rawContent = rawContent.replace(/```json\s*|\s*```/g, "").trim();
 
     let parsed;
     try {
-        parsed = JSON.parse(rawContent);
-    } catch (e) {
-        console.error("Failed to parse JSON:", rawContent);
-        throw new Error("Failed to parse OpenAI response as JSON");
+      parsed = JSON.parse(rawContent);
+    } catch {
+      console.error("Failed to parse JSON:", rawContent);
+      throw new Error("Failed to parse OpenAI response as JSON");
     }
-    
+
     // Handle case where root object is returned directly or wrapped in "root"
     let rootNode = parsed.root || parsed;
     if (rootNode.title && !rootNode.children) {
-        rootNode.children = [];
+      rootNode.children = [];
     }
 
     // Ensure root node has proper structure

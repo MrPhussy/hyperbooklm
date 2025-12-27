@@ -4,7 +4,7 @@ import { Hyperbrowser } from "@hyperbrowser/sdk";
 export async function POST(request: NextRequest) {
   try {
     const { url } = await request.json();
-    
+
     if (!url) {
       return NextResponse.json(
         { error: "URL is required" },
@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     }
 
     const apiKey = process.env.HYPERBROWSER_API_KEY;
-    
+
     if (!apiKey) {
       return NextResponse.json(
         { error: "Hyperbrowser API key is missing" },
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Extract data from the result
-    const data = scrapeResult.data as any;
+    const data = scrapeResult.data as { metadata?: { title?: string }; markdown?: string; text?: string };
     const title = data?.metadata?.title || new URL(url).hostname;
     const content = data?.markdown || data?.text || "";
     const text = data?.text || data?.markdown || "";

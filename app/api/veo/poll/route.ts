@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     }
 
     const res = await fetch(`${BASE_URL}/${operationName}?key=${apiKey}`);
-    
+
     if (!res.ok) {
       const text = await res.text();
       return NextResponse.json(
@@ -31,19 +31,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const data = await res.json();
-    
+    interface VeoPollResponse {
+      done?: boolean;
+      response?: {
+        generateVideoResponse?: {
+          generatedSamples?: Array<{
+            video?: {
+              uri?: string;
+            };
+          }>;
+        };
+      };
+    }
+
+    const data = (await res.json()) as VeoPollResponse;
+
     if (!data.done) {
       return NextResponse.json({ done: false, operationName });
     }
 
     const uri =
       data.response?.generateVideoResponse?.generatedSamples?.[0]?.video?.uri;
-    
-    return NextResponse.json({ 
-      done: true, 
-      operationName, 
-      videoUri: uri 
+
+    return NextResponse.json({
+      done: true,
+      operationName,
+      videoUri: uri
     });
   } catch (error) {
     console.error("Veo poll error:", error);

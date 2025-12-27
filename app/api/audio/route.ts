@@ -1,49 +1,65 @@
 import { NextRequest, NextResponse } from "next/server";
 
+const HUME_TTS_URL = "https://api.hume.ai/v0/tts/file";
+
 export async function POST(request: NextRequest) {
   try {
-    const { text, voiceId } = await request.json();
+    const { text, turns } = await request.json();
 
-    if (!text) {
+    if (!text && (!turns || turns.length === 0)) {
       return NextResponse.json(
-        { error: "Text is required" },
+        { error: "Text or turns are required" },
         { status: 400 }
       );
     }
 
-    const apiKey = process.env.ELEVENLABS_API_KEY;
+    const apiKey = process.env.HUME_API_KEY;
     if (!apiKey) {
-      console.error("[Audio] ElevenLabs API key is missing");
+      console.error("[Audio] Hume API key is missing");
       return NextResponse.json(
-        { error: "ElevenLabs API key is missing" },
+        { error: "Hume API key is missing" },
         { status: 500 }
       );
     }
 
-    // Default voice: "Rachel" or similar if not provided
-    const voice = voiceId || "21m00Tcm4TlvDq8ikWAM"; 
-    const url = `https://api.elevenlabs.io/v1/text-to-speech/${voice}`;
+    const host1Voice = process.env.HUME_HOST_1_VOICE || "Vince Douglas";
+    const host2Voice = process.env.HUME_HOST_2_VOICE || "Ava Song";
 
-    const response = await fetch(url, {
+    // Build utterances list
+    const utterances = [];
+    if (turns && Array.isArray(turns)) {
+      for (const turn of turns) {
+        utterances.push({
+          text: turn.text,
+          voice: {
+            name: turn.role === "host1" ? host1Voice : host2Voice,
+          },
+          version: "2"
+        });
+      }
+    } else {
+      utterances.push({
+        text: text,
+        voice: { name: host1Voice },
+        version: "2"
+      });
+    }
+
+    const response = await fetch(HUME_TTS_URL, {
       method: "POST",
       headers: {
-        "Accept": "audio/mpeg",
         "Content-Type": "application/json",
-        "xi-api-key": apiKey,
+        "X-Hume-Api-Key": apiKey,
       },
       body: JSON.stringify({
-        text,
-        model_id: "eleven_turbo_v2_5", // Use Turbo v2.5 (Free tier compatible)
-        voice_settings: {
-          stability: 0.5,
-          similarity_boost: 0.5,
-        },
+        utterances,
+        format: { type: "mp3" }
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("[Audio] ElevenLabs API error:", response.status, errorText);
+      console.error("[Audio] Hume API error:", response.status, errorText);
       return NextResponse.json(
         { error: errorText || "Failed to generate audio" },
         { status: response.status }
@@ -51,7 +67,7 @@ export async function POST(request: NextRequest) {
     }
 
     const audioBuffer = await response.arrayBuffer();
-    
+
     return new NextResponse(audioBuffer, {
       headers: {
         "Content-Type": "audio/mpeg",
