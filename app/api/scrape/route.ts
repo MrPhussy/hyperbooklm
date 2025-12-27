@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     const scrapeResult = await client.scrape.startAndWait({
       url,
       sessionOptions: {
-        useProxy: true,
+        useProxy: false,
         solveCaptchas: false,
       },
     });
