@@ -27,8 +27,7 @@ export async function POST(request: NextRequest) {
       url,
       sessionOptions: {
         useProxy: true,
-        solveCaptchas: true,
-        proxyCountry: "US",
+        solveCaptchas: false,
       },
     });
 
