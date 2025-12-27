@@ -33,15 +33,17 @@ export async function POST(request: NextRequest) {
           text: turn.text,
           voice: {
             name: turn.role === "host1" ? host1Voice : host2Voice,
+            provider: "HUME_AI",
           },
-          version: "2"
         });
       }
     } else {
       utterances.push({
         text: text,
-        voice: { name: host1Voice },
-        version: "2"
+        voice: {
+          name: host1Voice,
+          provider: "HUME_AI",
+        },
       });
     }
 
@@ -53,7 +55,8 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         utterances,
-        format: { type: "mp3" }
+        format: { type: "mp3" },
+        version: "2"
       }),
     });
 
